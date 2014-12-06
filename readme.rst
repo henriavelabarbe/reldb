@@ -1,4 +1,4 @@
-Relational database in Python
+Relational database prototype in Python
 
 ============
 Introduction
@@ -52,8 +52,10 @@ pool manager : handle connections from client
 
 transaction manager : handle transactions
                       serialize or parallel calls to storage managers
+
 storage manager : persist db changes to disk and memory
                   retrieve db changes from disk and memory
+
 resultset manager : provide a instant view of database elements from db changes
                     
 replication manager : manage replication between storage managers
