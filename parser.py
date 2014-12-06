@@ -144,6 +144,9 @@ attribute
     ;
 '''
 attribute = attribute_name + atype + Optional(',')
+print('attribute:')
+print(attribute.parseString('label CHAR'))
+print(attribute.parseString('label SAME_TYPE_AS(toto)'))
 
 '''
 attribute_commalist
@@ -168,6 +171,9 @@ heading
 '''
 heading = '{' + opt_attribute_commalist + '}'
 
+def test_heading():
+    print('heading:')
+    print(heading.parseString('{sid INTEGER, label CHAR, hiredate DATE}'))
 
 '''
 constraint_name
@@ -206,7 +212,11 @@ variable_name
     | FALSE
     ;
 '''
-boolean = Keyword('TRUE') | Keyword('FALSE')
+aboolean = Keyword('TRUE') | Keyword('FALSE')
+print('boolean:')
+print(aboolean.parseString('TRUE'))
+print(aboolean.parseString('FALSE'))
+
 
 '''
 expression_commalist
@@ -240,15 +250,15 @@ literal
 '''
 literal = Keyword('RELATION') + '{' + expression_commalist + '}' \
     | Keyword('RELATION') + heading + '{' + opt_expression_commalist + '}' \
-    | keyword('TUPLE') \
+    | Keyword('TUPLE') \
     | Keyword('TABLE_DEE') \
     | Keyword('TABLE_DUM') \
-    | string \
-    | integer \
-    | decimal \
-    | float \
+    | Word(alphanums) \
+    | Word(nums) \
     | aboolean
-
+print('literal:')
+print(literal.parseString('TABLE_DEE'))
+print(literal.parseString('TABLE_DUM'))
 
 
 '''
@@ -826,3 +836,6 @@ def insRelvar(name, values):
 
 def errorParsing():
     print('Error Parsing')
+
+if __name__ == '__main__':
+    test_heading()
