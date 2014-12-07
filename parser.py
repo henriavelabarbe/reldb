@@ -23,7 +23,7 @@ S { S#, SNAME, STATUS }
 
 """
 
-from pyparsing import Word, alphas, alphanums, Keyword, Optional, nums, QuotedString, CharsNotIn
+from pyparsing import *
 
 SIMPLETUPLE = "TUPLE { S# S#('S1'), SNAME NAME('Smith'),TATUS 20, CITY 'London' }"
 
@@ -43,15 +43,15 @@ SUPPLIER := RELATION {
 
 '''
 ; identifier
-    = '&lt;identifier&gt;'
+    = '<identifier>'
 ; string
-    = '&lt;string literal&gt;'
+    = '<string literal>'
 ; integer
-    = '&lt;integer literal&gt;'
+    = '<integer literal>'
 ; decimal
-    = '&lt;decimal literal&gt;'
+    = '<decimal literal>'
 ; float
-    = '&lt;float literal&gt;'
+    = '<float literal>'
 '''
 
 identifier = Word(alphanums)
@@ -70,11 +70,62 @@ type_name
 type_name = identifier
 
 '''
+rel_expression
+    = add_expression
+    | add_expression compop add_expression
+    ;
+'''
+rel_expression = Keyword('TOTO')
+
+'''
+not_expression
+    = rel_expression
+    | NOT rel_expression
+    ;
+'''
+not_expression = Group((Keyword('NOT') + rel_expression)) | rel_expression
+
+'''
+and_expression
+    = not_expression
+    | and_expression AND not_expression
+    ;
+'''
+#and_expression = not_expression | and_expression + Keyword('AND') + not_expression
+and_expression = Forward()
+and_expression << (not_expression + ZeroOrMore(Keyword('AND') + not_expression)).setResultsName('AND')
+
+'''
+xor_expression
+    = and_expression
+    | xor_expression XOR and_expression
+    ;
+'''
+xor_expression = Forward()
+xor_expression << (and_expression + ZeroOrMore(Keyword('XOR') + and_expression)).setResultsName('XOR')
+
+'''
+or_expression
+    = xor_expression
+    | or_expression OR xor_expression
+    ;
+'''
+or_expression = Forward()
+#or_expression = xor_expression | or_expression + Keyword('OR') + xor_expression
+or_expression << (xor_expression + ZeroOrMore(Keyword('OR') + xor_expression)).setResultsName('OR')
+print('or_expression:')
+print(or_expression.parseString('TOTO'))
+print(or_expression.parseString('TOTO OR TOTO'))
+print(or_expression.parseString('NOT TOTO XOR TOTO OR TOTO'))
+print(or_expression.parseString('NOT TOTO XOR TOTO OR TOTO').__dict__)
+print(or_expression.parseString('NOT TOTO XOR TOTO OR TOTO')['AND'])
+
+'''
 simple_expression
     = or_expression
     ;
 '''
-simple_expression = Keyword('TUTU')
+simple_expression = or_expression
 
 '''
 relation
@@ -682,7 +733,7 @@ summarize_add
 summary_spec
     = COUNT
     | COUNTD
-￼    | SUM
+    | SUM
     | SUMD
     | AVG
     | AVGD
@@ -703,27 +754,8 @@ tclose
 '''
 
 
+
 '''
-or_expression
-    = xor_expression
-    | or_expression OR xor_expression
-    ;
-xor_expression
-    = and_expression
-    | xor_expression XOR and_expression
-    ;
-and_expression
-    = not_expression
-    | and_expression AND not_expression
-    ;
-not_expression
-    = rel_expression
-    | NOT rel_expression
-    ;
-rel_expression
-    = add_expression
-    | add_expression compop add_expression
-    ;
 add_expression
     = mul_expression
     | addop mul_expression
@@ -745,10 +777,10 @@ primary_expression
 compop
 = '='
     | '/='
-    | '&gt;='
-    | '&lt;='
-    | '&gt;'
-￼    | '&lt;'
+    | '>='
+    | '<='
+    | '>'
+    | '<'
     | IN
     | NOT_IN
     | SUBSET OF
