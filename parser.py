@@ -69,13 +69,86 @@ type_name
 '''
 type_name = identifier
 
+expression_commalist = Forward()
+heading = Forward()
+opt_expression_commalist = Forward()
+
+'''
+; boolean
+    = TRUE
+    | FALSE
+    ;
+'''
+aboolean = Keyword('TRUE') | Keyword('FALSE')
+print('boolean:')
+print(aboolean.parseString('TRUE'))
+print(aboolean.parseString('FALSE'))
+
+'''
+literal
+    = RELATION '{' expression_commalist '}'
+    | RELATION heading '{' opt_expression_commalist '}'
+| TUPLE
+| TABLE_DEE
+| TABLE_DUM
+| string
+| integer
+| decimal
+| float
+| boolean
+;
+'''
+literal = Keyword('RELATION') + '{' + expression_commalist + '}' \
+    | Keyword('RELATION') + heading + '{' + opt_expression_commalist + '}' \
+    | Keyword('TUPLE') \
+    | Keyword('TABLE_DEE') \
+    | Keyword('TABLE_DUM') \
+    | Word(alphanums) \
+    | Word(nums) \
+    | aboolean
+print('literal:')
+print(literal.parseString('TABLE_DEE'))
+print(literal.parseString('TABLE_DUM'))
+
+'''
+primary_expression
+    = identifier
+    | literal
+    | user_op_inv
+    | agg_op_inv
+    | nadic_op_inv
+    | '(' expression ')'
+    ;
+'''
+primary_expression = identifier | literal
+
+'''
+mul_expression
+    = primary_expression
+    | mul_expression mulop primary_expression
+    ;
+'''
+mul_expression = primary_expression
+
+'''
+add_expression
+    = mul_expression
+    | addop mul_expression
+    | add_expression addop mul_expression
+    | add_expression '||'  mul_expression
+    ;
+'''
+add_expression = mul_expression
+
+
+
 '''
 rel_expression
     = add_expression
     | add_expression compop add_expression
     ;
 '''
-rel_expression = Keyword('TOTO')
+rel_expression = add_expression
 
 '''
 not_expression
@@ -150,6 +223,15 @@ relation_exp
 '''
 relation_exp = relation
 
+expression = Forward()
+
+'''
+tuple_extractor_inv
+    = TUPLE FROM expression
+    ;
+'''
+tuple_extractor_inv = Keyword('TUPLE') + Keyword('FROM') + expression
+
 '''
 expression
     = relation_exp
@@ -161,7 +243,7 @@ expression
 ￼   | tclose
     ;
 '''
-expression = relation_exp
+expression << (relation_exp | tuple_extractor_inv)
 
 '''
 type
@@ -252,21 +334,10 @@ statement_name
 user_op_name
 = identifier
     ;
-variable_name
-= identifier
 '''
 
 
-'''
-; boolean
-    = TRUE
-    | FALSE
-    ;
-'''
-aboolean = Keyword('TRUE') | Keyword('FALSE')
-print('boolean:')
-print(aboolean.parseString('TRUE'))
-print(aboolean.parseString('FALSE'))
+
 
 
 '''
@@ -275,7 +346,7 @@ expression_commalist
     | expression_commalist ',' expression
     ;
 '''
-expression_commalist = expression * (1,None)
+expression_commalist = expression + ZeroOrMore (',' + expression)
 
 '''
 opt_expression_commalist
@@ -283,33 +354,8 @@ opt_expression_commalist
     | expression_commalist
     ;
 '''
-opt_expression_commalist = expression_commalist
+opt_expression_commalist = ZeroOrMore(expression_commalist)
 
-'''
-literal
-    = RELATION '{' expression_commalist '}'
-    | RELATION heading '{' opt_expression_commalist '}'
-| TUPLE
-| TABLE_DEE
-| TABLE_DUM
-| string
-| integer
-| decimal
-| float
-| boolean
-;
-'''
-literal = Keyword('RELATION') + '{' + expression_commalist + '}' \
-    | Keyword('RELATION') + heading + '{' + opt_expression_commalist + '}' \
-    | Keyword('TUPLE') \
-    | Keyword('TABLE_DEE') \
-    | Keyword('TABLE_DUM') \
-    | Word(alphanums) \
-    | Word(nums) \
-    | aboolean
-print('literal:')
-print(literal.parseString('TABLE_DEE'))
-print(literal.parseString('TABLE_DUM'))
 
 
 '''
@@ -548,13 +594,71 @@ relation_var_def
     = database_relation_var_def
     | application_relation_var_def
     ;
+'''
+
+'''
+type_or_init_value
+    = type
+    | INIT '(' expression ')'
+    | type INIT '(' expression ')'
+    ;
+'''
+type_or_init_value = atype | Keyword('INIT') + '(' + expression + ')' | atype + Keyword('INIT') + '(' + expression + ')'
+
+'''
+attribute_name_commalist
+    = attribute_name
+    | attribute_name_commalist ',' attribute_name
+    ;
+'''
+attribute_name_commalist = attribute_name + ZeroOrMore(',' + attribute_name)
+
+print('attribute_name_commalist:')
+print(attribute_name_commalist.parseString('dbdbd, fhfhfhfh'))
+
+'''
+candidate_key_def
+    = KEY '{' attribute_name_commalist '}'
+    ;
+'''
+candidate_key_def = Keyword('KEY') + '{' + attribute_name_commalist + '}'
+print('candidate_key_def:')
+print(candidate_key_def.parseString('KEY { name, firstname, birthdate}'))
+
+'''
+candidate_key_def_list
+    = candidate_key_def
+    | candidate_key_def_list candidate_key_def
+    ;
+'''
+candidate_key_def_list = candidate_key_def * (1, None)
+
+'''
+variable_name
+= identifier
+'''
+variable_name = identifier
+
+'''
+real_relation_var_def
+    = VAR variable_name REAL type_or_init_value candidate_key_def_list
+    ;
+'''
+real_relation_var_def = Keyword('VAR') + variable_name + Keyword('REAL') + type_or_init_value + candidate_key_def_list
+
+print('real_relation_var_def:')
+print(real_relation_var_def.parseString('VAR supplier REAL CHAR KEY { id }'))
+
+'''
 database_relation_var_def
     = real_relation_var_def
     | virtual_relation_var_def
     ;
-real_relation_var_def
-    = VAR variable_name REAL type_or_init_value candidate_key_def_list
-    ;
+'''
+database_relation_var_def = real_relation_var_def
+
+
+'''
 virtual_relation_var_def
     = VAR variable_name VIRTUAL '(' expression ')' candidate_key_def_list
     ;
@@ -569,18 +673,10 @@ private_or_public
 relation_var_drop
     = DROP VAR variable_name
     ;
-type_or_init_value
-    = type
-    | INIT '(' expression ')'
-    | type INIT '(' expression ')'
-    ;
-candidate_key_def_list
-    = candidate_key_def
-    | candidate_key_def_list candidate_key_def
-    ;
-candidate_key_def
-    = KEY '{' attribute_name_commalist '}'
-    ;
+'''
+
+
+'''
 constraint_def
     = CONSTRAINT constraint_name expression
     ;
@@ -659,10 +755,10 @@ ungroup
 divide
     = relation DIVIDEBY expression per
     ;
-attribute_name_commalist
-    = attribute_name
-    | attribute_name_commalist ',' attribute_name
-    ;
+'''
+
+
+'''
 renaming_commalist
     = renaming
     | renaming_commalist ',' renaming
@@ -679,9 +775,10 @@ renaming
 wrapping_or_grouping
     = '{' opt_all_but attribute_name_commalist '}' AS introduced_name
     ;
-tuple_extractor_inv
-    = TUPLE FROM expression
-    ;
+'''
+
+
+'''
 attribute_extractor_inv
     = identifier FROM expression
     ;
@@ -755,25 +852,8 @@ tclose
 
 
 
+
 '''
-add_expression
-    = mul_expression
-    | addop mul_expression
-    | add_expression addop mul_expression
-    | add_expression '||'  mul_expression
-    ;
-mul_expression
-    = primary_expression
-    | mul_expression mulop primary_expression
-    ;
-primary_expression
-    = identifier
-    | literal
-    | user_op_inv
-    | agg_op_inv
-    | nadic_op_inv
-    | '(' expression ')'
-    ;
 compop
 = '='
     | '/='
